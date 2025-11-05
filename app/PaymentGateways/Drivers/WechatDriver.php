@@ -31,14 +31,14 @@ class WechatDriver extends AbstractPaymentDriver
     {
         try {
             $orderSN = $request->input('out_trade_no');
-            $orderService = app('App\\Service\\OrderService');
+            $orderService = app('App\\Services\\Orders'); // 安全修复L-4: 修正服务命名空间
             $order = $orderService->detailOrderSN($orderSN);
-            
+
             if (!$order) {
                 return 'error';
             }
 
-            $payService = app('App\\Service\\PayService');
+            $payService = app('App\\Services\\Payment'); // 安全修复L-4: 修正服务命名空间
             $payGateway = $payService->detail($order->pay_id);
             
             if (!$payGateway || $payGateway->pay_handleroute !== 'wechat') {

@@ -32,10 +32,14 @@ Route::middleware('dujiaoka.boot')->namespace('Home')->group(function () {
         Route::get('bill/{orderSN}', 'bill');
         Route::get('detail/{orderSN}', 'detailOrderSN');
         Route::get('search', 'orderSearch');
-        Route::get('status/{orderSN}', 'checkOrderStatus');
-        Route::post('search/sn', 'searchOrderBySN');
-        Route::post('search/email', 'searchOrderByEmail');
-        Route::post('search/browser', 'searchOrderByBrowser');
+        Route::get('status/{orderSN}', 'checkOrderStatus')->middleware('throttle:60,1'); // 安全修复M-6: 状态查询限制
+
+        // 安全修复M-6: 订单查询接口添加严格速率限制，防止暴力破解
+        Route::middleware('throttle:5,1')->group(function () {
+            Route::post('search/sn', 'searchOrderBySN');
+            Route::post('search/email', 'searchOrderByEmail');
+            Route::post('search/browser', 'searchOrderByBrowser');
+        });
     });
     
     // 支付相关

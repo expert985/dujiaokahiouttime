@@ -76,14 +76,19 @@ class OrderController extends BaseController
             $validated = $request->validate([
                 'email' => $emailRule,
                 'payway' => 'required|integer',
-                'search_pwd' => 'nullable|string',
+                'search_pwd' => ['nullable', 'string', 'min:8', 'max:255'], // 安全修复H-4: 增加密码强度验证
                 'cart_items' => 'required|array',
                 'cart_items.*.goods_id' => 'required|integer',
-                'cart_items.*.sub_id' => 'required|integer', 
+                'cart_items.*.sub_id' => 'required|integer',
                 'cart_items.*.quantity' => 'required|integer|min:1',
                 'use_balance' => 'boolean',
                 'balance_amount' => 'numeric|min:0'
             ]);
+
+            // 安全修复H-4: 额外验证查询密码强度，防止弱密码
+            if (!empty($validated['search_pwd'])) {
+                $this->validateSearchPassword($validated['search_pwd']);
+            }
 
             $userDiscountRate = 1.00;
             $userId = null;
@@ -468,6 +473,28 @@ class OrderController extends BaseController
     public function orderSearch(Request $request)
     {
         return $this->render('static_pages/searchOrder', [], __('dujiaoka.page-title.order-search'));
+    }
+
+    /**
+     * 验证查询密码强度
+     *
+     * 安全修复H-4: 防止弱密码绕过
+     *
+     * @param string $searchPwd
+     * @throws RuleValidationException
+     */
+    private function validateSearchPassword(string $searchPwd): void
+    {
+        // 检查是否为纯数字
+        if (ctype_digit($searchPwd)) {
+            throw new RuleValidationException('查询密码不能是纯数字，请使用字母和数字的组合');
+        }
+
+        // 检查是否为常见弱密码
+        $weakPasswords = ['12345678', '00000000', '11111111', 'password', 'abcd1234', '87654321', 'qwerty12', 'abc12345'];
+        if (in_array(strtolower($searchPwd), $weakPasswords)) {
+            throw new RuleValidationException('此密码过于简单，请使用更复杂的密码保护您的订单');
+        }
     }
 
 }
