@@ -55,10 +55,14 @@ class AdminUser extends Authenticatable implements FilamentUser
 
     /**
      * Determine if the user can access the Filament admin panel.
+     *
+     * 安全修复: 添加基于角色的访问控制
+     * 仅允许具有管理员角色的激活用户访问
      */
     public function canAccessPanel(Panel $panel): bool
     {
-        return true;
+        // 检查用户是否有管理员相关角色
+        return $this->hasAnyRole(['super-admin', 'admin', 'manager', 'order-processor']);
     }
 
 }

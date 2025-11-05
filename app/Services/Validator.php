@@ -73,6 +73,8 @@ class Validator
 
     /**
      * 验证订单创建请求
+     *
+     * 安全修复: 增加订单查询密码的强度要求
      */
     public function validateOrderRequest(Request $request): void
     {
@@ -80,11 +82,29 @@ class Validator
             'gid' => 'required|integer',
             'email' => ['required', 'email'],
             'payway' => ['required', 'integer'],
-            'search_pwd' => ['nullable', 'string', 'max:255'],
+            'search_pwd' => ['nullable', 'string', 'min:8', 'max:255'],
+        ], [
+            'search_pwd.min' => '查询密码至少需要8个字符，以保护您的订单安全',
         ]);
 
         if ($validator->fails()) {
             throw new RuleValidationException($validator->errors()->first());
+        }
+
+        // 额外验证: 检查查询密码不能是纯数字或过于简单
+        if ($request->filled('search_pwd')) {
+            $searchPwd = $request->input('search_pwd');
+
+            // 检查是否为纯数字
+            if (ctype_digit($searchPwd)) {
+                throw new RuleValidationException('查询密码不能是纯数字，请使用字母和数字的组合');
+            }
+
+            // 检查是否为常见弱密码
+            $weakPasswords = ['12345678', '00000000', '11111111', 'password', 'abcd1234', '87654321'];
+            if (in_array(strtolower($searchPwd), $weakPasswords)) {
+                throw new RuleValidationException('此密码过于简单，请使用更复杂的密码保护您的订单');
+            }
         }
     }
 

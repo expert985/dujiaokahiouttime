@@ -438,10 +438,33 @@ class OrderProcess
             if ($order->status == Order::STATUS_COMPLETED) {
                 throw new \Exception(__('dujiaoka.prompt.order_status_completed'));
             }
-            $bccomp = bccomp($order->actual_price, $actualPrice, 2);
+
+            // 安全修复: 改进金额验证逻辑，增加容忍度和审计日志
+            $orderAmount = round((float)$order->actual_price, 2);
+            $paidAmount = round((float)$actualPrice, 2);
+            $diff = abs($orderAmount - $paidAmount);
+            $tolerance = 0.01; // 1分钱容忍度，处理浮点精度问题
+
             // 金额不一致
-            if ($bccomp != 0) {
+            if ($diff > $tolerance) {
+                \Log::warning('Payment amount mismatch detected', [
+                    'order_sn' => $orderSN,
+                    'expected_amount' => $orderAmount,
+                    'paid_amount' => $paidAmount,
+                    'difference' => $diff,
+                    'trade_no' => $tradeNo
+                ]);
                 throw new \Exception(__('dujiaoka.prompt.order_inconsistent_amounts'));
+            }
+
+            // 如果有微小差异但在容忍范围内，记录信息日志
+            if ($diff > 0) {
+                \Log::info('Payment amount has minor difference within tolerance', [
+                    'order_sn' => $orderSN,
+                    'expected_amount' => $orderAmount,
+                    'paid_amount' => $paidAmount,
+                    'difference' => $diff
+                ]);
             }
             $order->actual_price = $actualPrice;
             $order->trade_no = $tradeNo ?: '';

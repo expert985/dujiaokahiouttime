@@ -43,16 +43,33 @@ class AuthController extends Controller
 
         if (Auth::guard('web')->attempt($credentials, $remember)) {
             $request->session()->regenerate();
-            
+
             $user = Auth::guard('web')->user();
             $user->updateLastLogin($request->ip());
-            
+
             RateLimiter::clear($this->throttleKey($request));
+
+            // 记录成功登录日志
+            \Log::info('User login successful', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
 
             return redirect()->intended(route('user.center'));
         }
 
         RateLimiter::hit($this->throttleKey($request));
+
+        // 安全修复: 记录登录失败日志，用于安全监控和暴力破解检测
+        \Log::warning('User login failed', [
+            'email' => $request->input('email'),
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'attempts' => RateLimiter::attempts($this->throttleKey($request)),
+            'timestamp' => now()->toDateTimeString(),
+        ]);
 
         throw ValidationException::withMessages([
             'email' => __('auth.failed'),
